@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QC Terminado - Parras Valley</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:#030712;color:#f0ece6;font-family:system-ui,sans-serif;}
+    input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+    select option{background:#0a1628;}
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-thumb{background:rgba(34,197,94,0.3);border-radius:4px;}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+var useState=React.useState;
+var useEffect=React.useEffect;
+
+var PIN_QCT = "1986";
+
+function ModalPinQCT(props){
+  var s1=React.useState(""); var vp=s1[0]; var svp=s1[1];
+  var s2=React.useState(false); var errp=s2[0]; var serrp=s2[1];
+  function okp(){if(vp===PIN_QCT){svp("");serrp(false);props.onOk();}else{serrp(true);svp("");}}
+  return (
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.9)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:"#0a1a0a",border:"2px solid rgba(34,197,94,0.3)",borderRadius:16,padding:32,maxWidth:300,width:"100%",textAlign:"center"}}>
+        <div style={{fontSize:25,fontWeight:900,color:"#f0f0e8",marginBottom:6}}>Acceso de editor</div>
+        <div style={{fontSize:20,color:"#4a7a54",marginBottom:20}}>PIN para registrar</div>
+        <input type="number" value={vp} onChange={function(e){svp(e.target.value.slice(0,8));serrp(false);}} placeholder="PIN"
+          style={{width:"100%",background:"rgba(0,0,0,0.4)",border:"2px solid "+(errp?"#f87171":"rgba(34,197,94,0.3)"),borderRadius:10,padding:"12px",color:"#22c55e",fontFamily:"Georgia,serif",fontSize:36,textAlign:"center",outline:"none",marginBottom:errp?8:16,letterSpacing:6}}/>
+        {errp&&<div style={{fontSize:20,fontWeight:800,color:"#f87171",marginBottom:12}}>PIN incorrecto</div>}
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={props.onCancel} style={{flex:1,padding:"11px",background:"rgba(255,255,255,0.05)",border:"2px solid rgba(255,255,255,0.1)",borderRadius:9,color:"#6b7280",fontSize:21,fontWeight:700,cursor:"pointer",fontFamily:"system-ui"}}>Cancelar</button>
+          <button onClick={okp} style={{flex:1,padding:"11px",background:"linear-gradient(135deg,#16a34a,#22c55e)",border:"none",borderRadius:9,color:"#052e16",fontSize:21,fontWeight:900,cursor:"pointer",fontFamily:"system-ui"}}>Entrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+// Estructura: Producto -> Presentaciones -> Clientes
+var CATALOGO = {
+  "Persa": {
+    emoji:"", color:"#16a34a", bg:"#052e16",
+    pres:{
+      "20lb":  ["Mama Mia","Perfresh","4 Earth","Pure Flavor","Generica"],
+      "12x1":  ["Lakeway","DQP","Nature Sweet","Pero Family","Wholesum","4 Earth","Pure Flavor","Generica"],
+      "8x2":   ["4 Earth","Generica"],
+    }
+  },
+  "Europeo": {
+    emoji:"", color:"#7c3aed", bg:"#2e1065",
+    pres:{
+      "12ct":       ["Wholesum","DQP","Custom Pack","Produce Team","Perfresh"],
+      "24ct":       ["DQP","Lakeway"],
+      "1/9 bushel": ["Mercado","Custom Pack","Perfresh"],
+    }
+  },
+  "Slicer": {
+    emoji:"", color:"#0284c7", bg:"#082f49",
+    pres:{
+      "18ct":  ["Generica"],
+      "24ct":  ["Generica"],
+      "36ct":  ["Lakeway","Perfresh","Pero Family","Produce Team"],
+      "25lb":  ["Wholesum"],
+      "50lb":  ["Wholesum","Perfresh"],
+      "62ct":  ["Gateway"],
+    }
+  },
+  "Morron": {
+    emoji:"M", color:"#dc2626", bg:"#450a0a",
+    variantes:["Rojo","Amarillo","Naranja","Verde"],
+    pres:{
+      "11lb":["Wholesum","Pero Family","Perfresh","Nature Sweet"],
+      "12x2":["Wholesum","Pero Family","Perfresh","Nature Sweet"],
+      "1/9 bushel":["Wholesum","Pero Family","Perfresh","Nature Sweet"],
+      "25lb":["Wholesum","Pero Family","Perfresh","Nature Sweet"],
+      "8x6":["Wholesum","Pero Family","Perfresh","Nature Sweet"]
+    }
+  },
+  "Minibel": {
+    emoji:"", color:"#ea580c", bg:"#431407",
+    pres:{ "Generica":["Generica"] }
+  },
+};
+var PRODUCTOS_CAT = Object.keys(CATALOGO);
+var DEFECTOS = ["Deforme","Cicatriz","Dano mecanico","Trips","Fuera de tamano","Flacido","Amarillo","Gusano","Mal cierre"];
+var DEFECTOS_MORRON = ["Deforme","Cicatriz","Dano mecanico","Trips","Fuera de tamano","Flacido","Fumagina","Gusano","Verde","Sucio"];
+var DEFECTOS_EUROPEO = ["Deforme","Cicatriz","Dano mecanico","Trips","Fuera de tamano","Flacido","Amarillo","Gusano","Mal cierre","Mal emplaye"];
+var RECHAZOS = ["Pudricion","Mal etiquetado"];
+var PESO_MAX = {"20lb":9.3,"12x1":480,"8x2":950,"25lb":11.66,"50lb":23.31};
+var PESO_MIN = {"20lb":9.2,"12x1":470,"8x2":940,"25lb":11.57,"50lb":23.13};
+
+function lsSave(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function lsLoad(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
+function nv(v){var x=parseFloat(v);return isNaN(x)?0:x;}
+function f1(v){return isNaN(v)||!isFinite(v)?"0.0":Number(v).toFixed(1);}
+function pct(n,t){return t>0?Math.round((n/t)*100):0;}
+
+function semCal(p){
+  if(p>=95) return {c:"#22c55e",bg:"#052e16",lbl:"APROBADO",icon:""};
+  if(p>=91) return {c:"#f59e0b",bg:"#451a03",lbl:"CUIDADO",icon:"!"};
+  return {c:"#ef4444",bg:"#450a0a",lbl:"PROBABLE RECHAZO",icon:"X"};
+}
+function semPeso(p,tipo){
+  var min=PESO_MIN[tipo]||0, max=PESO_MAX[tipo]||999;
+  if(p===0) return {c:"#4a5568",lbl:""};
+  if(p<min) return {c:"#ef4444",lbl:"BAJO"};
+  if(p>max) return {c:"#f59e0b",lbl:"ALTO"};
+  return {c:"#22c55e",lbl:"OK"};
+}
+function semPiezas(p){
+  if(p===0) return {c:"#4a5568"};
+  if(p<5) return {c:"#ef4444"};
+  if(p>8) return {c:"#f59e0b"};
+  return {c:"#22c55e"};
+}
+function regalo(p,tipo){
+  var max=PESO_MAX[tipo]||0;
+  if(!p||p<=max) return null;
+  var gPorBolsa=Math.round(p-max);
+  var numBolsas=tipo==="8x2"?8:tipo==="12x1"?12:1;
+  var g=tipo==="20lb"?Math.round((p-max)*1000):gPorBolsa*numBolsas;
+  var totalMax=max*numBolsas;
+  var pctG=(g/totalMax*100).toFixed(1);
+  return {g, gPorBolsa:tipo==="20lb"?null:gPorBolsa, pctG, numBolsas};
+}
+
+function initForm(pres){
+  var defs={};DEFECTOS.forEach(function(d){defs[d]="";});
+  var recs={};RECHAZOS.forEach(function(r){recs[r]="";});
+  var n=pres==="8x2"?8:12;
+  var bolsas=[];
+  for(var i=0;i<n;i++){bolsas.push({num:i+1,peso:"",piezas:""});}
+  return {rancho:"PVT",malla:"",peso:"",piezas:"",primera:"",segunda:"",tercera:"",merma:"",empacador:"",defs:defs,recs:recs,bolsas:bolsas};
+}
+
+function App(){
+  var [mobQCT,setMobQCT]=React.useState(window.innerWidth<768);
+  React.useEffect(function(){
+    function resize(){setMobQCT(window.innerWidth<768);}
+    window.addEventListener("resize",resize);
+    return function(){window.removeEventListener("resize",resize);};
+  },[]);
+  var [authQCT,setAuthQCT]=React.useState(false);
+  var [showPinQCT,setShowPinQCT]=React.useState(false);
+  var [pinCbQCT,setPinCbQCT]=React.useState(null);
+  var [tab,setTab]=useState("captura");
+  var [pedidosActivos,setPedidosActivos]=useState(function(){return lsLoad("qct3-act",{});});
+  var [hist,setHist]=useState(function(){return lsLoad("qct3-hist",[]);});
+  var [cliente,setCliente]=useState("Mama Mia");
+  var [vari,setVari]=useState("");
+  var [producto,setProducto]=useState("Persa");
+  var [pres,setPres]=useState("20lb");
+  var [totalCajas,setTotalCajas]=useState("");
+  var [form,setForm]=useState(function(){return initForm("20lb");});
+  var [pedidoOpen,setPedidoOpen]=useState(null);
+  var [cerrarConf,setCerrarConf]=useState(null);
+
+  var saveActivos=function(v){setPedidosActivos(v);lsSave("qct3-act",v);};
+  var saveHist=function(v){setHist(v);lsSave("qct3-hist",v);};
+  var clave=cliente+"|"+producto+"|"+pres+(vari?"|"+vari:"");
+  var es20=pres==="20lb"||pres==="25lb"||pres==="50lb";
+  var esBolsas=pres==="12x1"||pres==="8x2";
+
+  var cambiarProducto=function(prod){
+    setProducto(prod);
+    var prims=Object.keys((CATALOGO[prod]&&CATALOGO[prod].pres)||{});
+    var p=prims[0]||"Generica";
+    setPres(p);
+    var cls=(CATALOGO[prod]&&CATALOGO[prod].pres&&CATALOGO[prod].pres[p])||["Generica"];
+    setCliente(cls[0]);
+    setVari("");
+    setForm(initForm(p));
+  };
+  var cambiarPres=function(p){
+    setPres(p);
+    var cls=(CATALOGO[producto]&&CATALOGO[producto].pres&&CATALOGO[producto].pres[p])||["Generica"];
+    setCliente(cls[0]);
+    setForm(initForm(p));
+  };
+  var setF=function(k,v){setForm(function(f){var n=Object.assign({},f);n[k]=v;return n;});};
+  var setD=function(k,v){setForm(function(f){var d=Object.assign({},f.defs);d[k]=v;return Object.assign({},f,{defs:d});});};
+  var setR=function(k,v){setForm(function(f){var r=Object.assign({},f.recs);r[k]=v;return Object.assign({},f,{recs:r});});};
+  var setBolsa=function(i,k,v){setForm(function(f){var b=f.bolsas.slice();b[i]=Object.assign({},b[i]);b[i][k]=v;var nf=Object.assign({},f);nf.bolsas=b;return nf;});};
+
+  // Calculos
+  var total=nv(form.primera)+nv(form.segunda)+nv(form.tercera)+nv(form.merma);
+  var pPri=pct(nv(form.primera),total);
+  var es19 = pres==="1/9 bushel" || (pres==="50lb" && cliente==="Perfresh");
+  // Semaforo inverso: no debe ir mas del 5% de primera
+  var sm = es19
+    ? (pPri>5?{c:"#ef4444",bg:"#450a0a",lbl:"ALERTA  Mucha primera",icon:"!"}:{c:"#22c55e",bg:"#052e16",lbl:"OK  Tercera correcta",icon:""})
+    : semCal(pPri);
+  var piezasDefecto=nv(form.segunda)+nv(form.tercera)+nv(form.merma);
+  var totalDefs=Object.values(form.defs).reduce(function(s,v){return s+nv(v);},0);
+  var incongruencia=total>0&&totalDefs>piezasDefecto;
+  var totalPiezasCaja=nv(form.piezas);
+  var incongruenciaCaja=totalPiezasCaja>0&&total>0&&total!==totalPiezasCaja;
+  var hayRechazo=RECHAZOS.some(function(r){return nv((form.recs&&form.recs[r])||0)>0;});
+  // Bajo peso automatico segun peso registrado
+  var bajoPeso20 = es20 && nv(form.peso)>0 && nv(form.peso)<PESO_MIN["20lb"];
+  var bajoPesoBolsas = esBolsas ? form.bolsas.filter(function(b){return nv(b.peso)>0&&nv(b.peso)<PESO_MIN[pres];}).length : 0;
+  var hayBajoPeso = bajoPeso20 || bajoPesoBolsas>0;
+  var hayRechazoTotal = hayRechazo || hayBajoPeso;
+  var smPeso=semPeso(nv(form.peso),pres);
+  var regaloPeso=regalo(nv(form.peso),pres);
+
+  // Bolsas
+  var bolsasDatos=form.bolsas.filter(function(b){return nv(b.peso)>0;});
+  var avgPeso=bolsasDatos.length>0?bolsasDatos.reduce(function(s,b){return s+nv(b.peso);},0)/bolsasDatos.length:0;
+  var avgPiezas=bolsasDatos.length>0?bolsasDatos.reduce(function(s,b){return s+nv(b.piezas);},0)/bolsasDatos.length:0;
+  var totalPiezasBolsas=form.bolsas.reduce(function(s,b){return s+nv(b.piezas);},0);
+  var incongruenciaPiezas=total>0&&totalPiezasBolsas>0&&totalPiezasBolsas!==total;
+  var regaloAvg=regalo(avgPeso,pres);
+
+  var numActivos=Object.keys(pedidosActivos).length;
+
+  var esConteo = !es20 && !esBolsas; // 12ct, 24ct, 1/9 bushel, etc.
+  var puedoGuardar = es20
+    ? (total>0&&!incongruencia&&!incongruenciaCaja)
+    : esBolsas
+    ? (bolsasDatos.length>0&&!incongruencia&&!incongruenciaPiezas&&!incongruenciaCaja)
+    : (total>0&&!incongruencia); // conteo - solo necesita calidades
+
+  var guardar=function(){
+    if(!puedoGuardar) return;
+    var activos=Object.assign({},pedidosActivos);
+    if(!activos[clave]) activos[clave]={cliente,producto,presentacion:pres,totalCajas:nv(totalCajas),evaluaciones:[],fecha:new Date().toLocaleDateString("es-MX")};
+    activos[clave]={...activos[clave],totalCajas:nv(totalCajas)};
+    var ev={id:Date.now(),pres,producto,vari:vari||"",rancho:form.rancho,malla:form.malla,peso:nv(form.peso),piezas:nv(form.piezas),empacador:form.empacador,
+      total,pPri,defs:{...form.defs},recs:{...form.recs},bajoPeso20,bajoPesoBolsas,
+      bolsas:esBolsas?form.bolsas.slice():null,avgPeso,avgPiezas};
+    activos[clave].evaluaciones=activos[clave].evaluaciones.concat([ev]);
+    saveActivos(activos);
+    setForm(initForm(pres));
+  };
+
+  var cerrarPedido=function(k){
+    var ped=pedidosActivos[k];
+    if(!ped) return;
+    var avgCal=ped.evaluaciones.length>0?ped.evaluaciones.reduce(function(s,e){return s+(e.pPri||0);},0)/ped.evaluaciones.length:0;
+    var pctEval=ped.totalCajas>0?((ped.evaluaciones.length/ped.totalCajas)*100).toFixed(1):0;
+    var nuevos=Object.assign({},pedidosActivos);delete nuevos[k];
+    saveActivos(nuevos);
+    saveHist([{...ped,fechaCierre:new Date().toLocaleDateString("es-MX"),avgCal,pctEval},...hist].slice(0,60));
+    setCerrarConf(null);setTab("pedidos");
+  };
+
+  function pinReqQCT(cb){if(authQCT){cb();return;}setPinCbQCT(function(){return cb;});setShowPinQCT(true);}
+  function pinOkQCT(){setAuthQCT(true);setShowPinQCT(false);if(pinCbQCT){pinCbQCT();setPinCbQCT(null);}}
+
+  var inp={width:"100%",border:"none",borderBottom:"2px solid rgba(255,255,255,0.25)",background:"transparent",color:"#f0ece6",fontFamily:"Georgia,serif",fontSize:24,fontWeight:900,textAlign:"center",outline:"none",padding:"8px 0"};
+  var sel={width:"100%",border:"2px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"12px 14px",background:"rgba(0,0,0,0.35)",color:"#f0ece6",fontFamily:"system-ui,sans-serif",fontSize:19,fontWeight:700,outline:"none"};
+  var lbl={fontSize:13,color:"#7a8699",textTransform:"uppercase",letterSpacing:1.2,marginBottom:5,fontWeight:700};
+
+  return (
+    <div style={{background:"linear-gradient(135deg,#0a1220 0%,#0d1a2a 100%)",minHeight:"100vh",color:"#e2ddd6",fontFamily:"system-ui,sans-serif"}}>
+
+      <div style={{background:"rgba(0,0,0,0.5)",borderBottom:"2px solid rgba(59,130,246,0.3)",padding:"14px 18px",display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:25}}></span>
+        <div style={{flex:1}}>
+          <div style={{fontSize:20,fontWeight:900,color:"#f0ece6"}}>QC TERMINADO</div>
+          <div style={{fontSize:14,color:"#4a5568",textTransform:"uppercase",letterSpacing:1}}>Parras Valley - Producto terminado</div>
+        </div>
+        <button onClick={function(){if(!authQCT){setShowPinQCT(true);setPinCbQCT(null);}else{setAuthQCT(false);}}}
+          style={{padding:"5px 12px",borderRadius:18,background:authQCT?"rgba(34,197,94,0.18)":"rgba(255,255,255,0.06)",color:authQCT?"#22c55e":"#6b7280",fontWeight:800,fontSize:18,cursor:"pointer",border:"1px solid "+(authQCT?"rgba(34,197,94,0.3)":"rgba(255,255,255,0.12)"),fontFamily:"system-ui"}}>
+          {authQCT?"EDITOR":"LECTOR"}
+        </button>
+        {numActivos>0&&<div style={{background:"rgba(59,130,246,0.2)",border:"1px solid rgba(59,130,246,0.4)",borderRadius:20,padding:"2px 7px",fontSize:17,color:"#3b82f6",fontWeight:700}}>{numActivos} activo{numActivos>1?"s":""}</div>}
+      </div>
+
+      <div style={{display:"flex",borderBottom:"2px solid rgba(255,255,255,0.08)",position:"sticky",top:0,background:"#0a1220",zIndex:40}}>
+        {[["captura","Captura"],["pedidos","Pedidos"+(numActivos>0?" ("+numActivos+")":"")],["historial","Hist."]].map(function(item){var id=item[0];var lbl2=item[1];return (
+          <button key={id} onClick={function(){setTab(id);}} style={{flex:1,padding:"12px 8px",border:"none",borderBottom:tab===id?"3px solid #3b82f6":"3px solid transparent",background:"transparent",fontFamily:"system-ui,sans-serif",fontSize:18,fontWeight:800,cursor:"pointer",color:tab===id?"#3b82f6":"#4a5568",textTransform:"uppercase",letterSpacing:1,minHeight:52}}>{lbl2}</button>
+        )})}
+      </div>
+
+      <div style={{padding:"14px 16px 60px",maxWidth:680,margin:"0 auto"}}>
+
+      {tab==="captura"&&(
+        <div>
+          {/* Selector */}
+          <div style={{background:"rgba(59,130,246,0.08)",border:"1px solid rgba(59,130,246,0.2)",borderRadius:7,padding:"5px 8px",marginBottom:6}}>
+            {/* Selector visual de producto */}
+            <div style={{display:"flex",gap:4,marginBottom:5,overflowX:"auto"}}>
+              {PRODUCTOS_CAT.map(function(p){
+                var c=CATALOGO[p];
+                var sel2=producto===p;
+                return <button key={p} onClick={function(){cambiarProducto(p);}} style={{flex:"0 0 auto",padding:"12px 22px",border:"2px solid "+(sel2?c.color:"rgba(255,255,255,0.1)"),borderRadius:24,background:sel2?c.bg:"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:6,opacity:sel2?1:0.5,transition:"all 0.2s",minHeight:48}}>
+                  <span style={{fontSize:20}}>{c.emoji}</span>
+                  <span style={{fontSize:17,fontWeight:700,color:sel2?c.color:"#4a5568"}}>{p}</span>
+                </button>;
+              })}
+            </div>
+            {/* Selector de color (Morron) */}
+            {CATALOGO[producto]&&CATALOGO[producto].variantes&&(
+              <div style={{display:"flex",gap:6,marginBottom:6}}>
+                {CATALOGO[producto].variantes.map(function(v){
+                  var selV=vari===v;
+                  var cv=v==="Rojo"?"#ef4444":v==="Amarillo"?"#eab308":v==="Naranja"?"#f97316":"#22c55e";
+                  return (
+                    <button key={v} onClick={function(){setVari(selV?"":v);}}
+                      style={{flex:1,padding:"10px 4px",border:"2px solid "+(selV?cv:"rgba(255,255,255,0.12)"),borderRadius:8,background:selV?cv+"22":"transparent",cursor:"pointer",fontSize:14,fontWeight:800,color:selV?cv:"#6b7280",fontFamily:"system-ui"}}>
+                      {v}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {/* Presentacion y cliente */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4,marginBottom:4}}>
+              <div><div style={lbl}>Presentacion</div><select style={sel} value={pres} onChange={function(e){cambiarPres(e.target.value);}}>{Object.keys((CATALOGO[producto]&&CATALOGO[producto].pres)||{}).map(function(p){return <option key={p}>{p}</option>;})}</select></div>
+              <div><div style={lbl}>Cliente</div><select style={sel} value={cliente} onChange={function(e){setCliente(e.target.value);}}>{ ((CATALOGO[producto]&&CATALOGO[producto].pres&&CATALOGO[producto].pres[pres])||["Generica"]).map(function(c){return <option key={c}>{c}</option>;})}</select></div>
+              <div><div style={lbl}>Total cajas</div><input style={{...sel,fontFamily:"Georgia,serif",fontSize:20,fontWeight:900,textAlign:"center"}} type="number" placeholder="0" value={totalCajas} onChange={function(e){setTotalCajas(e.target.value);}}/></div>
+            </div>
+            {pedidosActivos[clave]&&<div style={{fontSize:16,color:"#22c55e",fontWeight:700}}>{pedidosActivos[clave].evaluaciones.length} evaluaciones guardadas en este pedido</div>}
+          </div>
+
+          {/* FORM 20LB */}
+          {es20&&(
+          <div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4,marginBottom:5}}>
+            <div>
+              <div style={lbl}>Peso caja (kg){pres==="25lb"?"  obj 11.57-11.66":pres==="50lb"?"  obj 23.13-23.31":""}</div>
+              <>
+                <input style={{...sel,fontFamily:"Georgia,serif",fontSize:21,fontWeight:900,textAlign:"center",borderColor:smPeso.c+"44"}} type="number" placeholder={pres==="25lb"?"11.57-11.66":pres==="50lb"?"23.13-23.31":"9.2-9.3"} value={form.peso} onChange={function(e){setF("peso",e.target.value);}}/>
+                {nv(form.peso)>0&&<div style={{fontSize:16,color:smPeso.c,fontWeight:700,textAlign:"center",marginTop:1}}>{smPeso.lbl}{regaloPeso&&<span style={{color:"#f59e0b"}}>  +{regaloPeso.g}g regalo ({regaloPeso.pctG}%)</span>}</div>}
+              </>
+            </div>
+            <div>
+              <div style={lbl}>Piezas en caja</div>
+              <input style={{...sel,fontFamily:"Georgia,serif",fontSize:21,fontWeight:900,textAlign:"center"}} type="number" placeholder="0" value={form.piezas} onChange={function(e){setF("piezas",e.target.value);}}/>
+            </div>
+
+          </div>
+          {incongruenciaCaja&&<div style={{background:"#450a0a",border:"1px solid #ef4444",borderRadius:4,padding:"3px 7px",marginBottom:4,fontSize:16,color:"#ef4444",fontWeight:700}}>INCONGRUENCIA  Calidades ({total}) no cuadran con total de piezas ({totalPiezasCaja})</div>}
+          {total>0&&(
+            <div style={{background:sm.bg,border:"1px solid "+sm.c+"44",borderRadius:7,padding:"5px 8px",marginBottom:5,display:"flex",alignItems:"center",gap:8}}>
+              <div style={{fontSize:36,fontWeight:900,color:sm.c,fontFamily:"Georgia,serif",lineHeight:1,minWidth:56,textAlign:"center"}}>{pPri}%</div>
+              <div style={{flex:1,display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:3}}>
+                {[["1ra",pct(nv(form.primera),total),"#22c55e"],["2da",pct(nv(form.segunda),total),"#f59e0b"],["3ra",pct(nv(form.tercera),total),"#f97316"],["Merma",pct(nv(form.merma),total),"#ef4444"]].map(function(x){return (
+                  <div key={x[0]} style={{textAlign:"center",background:"rgba(0,0,0,0.3)",borderRadius:3,padding:2}}>
+                    <div style={{fontSize:13,color:"#4a5568"}}>{x[0]}</div>
+                    <div style={{fontSize:18,fontWeight:900,color:x[2],fontFamily:"Georgia,serif"}}>{x[1]}%</div>
+                  </div>
+                )})}
+              </div>
+              <div style={{color:sm.c,border:"1px solid "+sm.c,padding:"2px 6px",borderRadius:20,fontSize:17,fontWeight:700}}>{sm.icon} {sm.lbl}</div>
+            </div>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:3,marginBottom:4}}>
+            {[["primera","1ra","#22c55e"],["segunda","2da","#f59e0b"],["tercera","3ra","#f97316"],["merma","Merma","#ef4444"]].map(function(x){return (
+              <div key={x[0]} style={{background:"rgba(0,0,0,0.3)",border:"1px solid "+(nv(form[x[0]])>0?x[2]+"44":"rgba(255,255,255,0.06)"),borderRadius:4,padding:"3px",textAlign:"center"}}>
+                <div style={{fontSize:13,color:x[2],textTransform:"uppercase",marginBottom:1}}>{x[1]}</div>
+                <input style={inp} type="number" min="0" placeholder="0" value={form[x[0]]} onChange={function(e){setF(x[0],e.target.value);}}/>
+                <div style={{fontSize:17,fontWeight:900,color:nv(form[x[0]])>0?x[2]:"rgba(255,255,255,0.1)",fontFamily:"Georgia,serif",marginTop:1}}>{total>0?pct(nv(form[x[0]]),total):0}%</div>
+              </div>
+            )})}
+          </div>
+          </div>
+          )}
+          {esConteo&&(
+            <div>
+              <div style={{fontSize:15,color:"#4a5568",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>
+                Eval. #{((pedidosActivos[clave]&&pedidosActivos[clave].evaluaciones&&pedidosActivos[clave].evaluaciones.length)||0)+1}  {producto} {pres}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,marginBottom:5}}>
+                <div><div style={lbl}>Piezas en caja</div>
+                  <input style={{...sel,fontFamily:"Georgia,serif",fontSize:21,fontWeight:900,textAlign:"center"}} type="number" placeholder="0" value={form.piezas} onChange={function(e){setF("piezas",e.target.value);}}/>
+                </div>
+                <div><div style={lbl}>Empacador #</div>
+                  <input style={{...sel,fontFamily:"Georgia,serif",fontSize:21,fontWeight:900,textAlign:"center"}} placeholder="ID" value={form.empacador||""} onChange={function(e){setF("empacador",e.target.value);}}/>
+                </div>
+              </div>
+              {total>0&&(
+                <div style={{background:sm.bg,border:"1px solid "+sm.c+"44",borderRadius:7,padding:"5px 8px",marginBottom:5,display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{fontSize:36,fontWeight:900,color:sm.c,fontFamily:"Georgia,serif",lineHeight:1,minWidth:56,textAlign:"center"}}>{pPri}%</div>
+                  <div style={{flex:1,display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:3}}>
+                    {[["1ra",pct(nv(form.primera),total),"#22c55e"],["2da",pct(nv(form.segunda),total),"#f59e0b"],["3ra",pct(nv(form.tercera),total),"#f97316"],["Merma",pct(nv(form.merma),total),"#ef4444"]].map(function(x){return (
+                      <div key={x[0]} style={{textAlign:"center",background:"rgba(0,0,0,0.3)",borderRadius:3,padding:2}}>
+                        <div style={{fontSize:13,color:"#4a5568"}}>{x[0]}</div>
+                        <div style={{fontSize:18,fontWeight:900,color:x[2],fontFamily:"Georgia,serif"}}>{x[1]}%</div>
+                      </div>
+                    )})}
+                  </div>
+                  <div style={{color:sm.c,border:"1px solid "+sm.c,padding:"2px 6px",borderRadius:20,fontSize:17,fontWeight:700}}>{sm.icon} {sm.lbl}</div>
+                </div>
+              )}
+              {es19&&pPri>=5&&<div style={{background:"#450a0a",border:"1px solid #ef4444",borderRadius:4,padding:"3px 7px",marginBottom:4,fontSize:16,color:"#ef4444",fontWeight:700}}>ALERTA  {pPri}% de primera. No debe superar el 5% en esta presentacion</div>}
+              {incongruenciaCaja&&<div style={{background:"#450a0a",border:"1px solid #ef4444",borderRadius:4,padding:"3px 7px",marginBottom:4,fontSize:16,color:"#ef4444",fontWeight:700}}>INCONGRUENCIA  Calidades ({total}) no cuadran con piezas en caja ({totalPiezasCaja})</div>}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:3,marginBottom:5}}>
+                {[["primera","1ra","#22c55e"],["segunda","2da","#f59e0b"],["tercera","3ra","#f97316"],["merma","Merma","#ef4444"]].map(function(x){return (
+                  <div key={x[0]} style={{background:"rgba(0,0,0,0.3)",border:"1px solid "+(nv(form[x[0]])>0?x[2]+"44":"rgba(255,255,255,0.06)"),borderRadius:4,padding:"3px",textAlign:"center"}}>
+                    <div style={{fontSize:13,color:x[2],textTransform:"uppercase",marginBottom:1}}>{x[1]}</div>
+                    <input style={inp} type="number" min="0" placeholder="0" value={form[x[0]]} onChange={function(e){setF(x[0],e.target.value);}}/>
+                    <div style={{fontSize:17,fontWeight:900,color:nv(form[x[0]])>0?x[2]:"rgba(255,255,255,0.1)",fontFamily:"Georgia,serif",marginTop:1}}>{total>0?pct(nv(form[x[0]]),total):0}%</div>
+                  </div>
+                )})}
+              </div>
+              <div style={{fontSize:14,color:"#4a5568",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Defectos</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3,marginBottom:5}}>
+                {(producto==="Morron"?DEFECTOS_MORRON:producto==="Europeo"?DEFECTOS_EUROPEO:DEFECTOS).map(function(d){
+                  var c=nv(form.defs[d]||0),p=pct(c,total);
+                  return (
+                    <div key={d} style={{display:"flex",alignItems:"center",gap:4,background:c>0?"rgba(59,130,246,0.08)":"rgba(0,0,0,0.2)",border:"1px solid "+(c>0?"rgba(59,130,246,0.3)":"rgba(255,255,255,0.06)"),borderRadius:4,padding:"8px 10px"}}>
+                      <span style={{fontSize:16,flex:1,color:c>0?"#bfdbfe":"#6b7280"}}>{d}</span>
+                      <input style={{width:32,border:"none",borderBottom:"1px solid rgba(255,255,255,0.2)",background:"transparent",color:"#f0ece6",fontFamily:"monospace",fontSize:18,fontWeight:700,textAlign:"center",outline:"none"}} type="number" min="0" placeholder="0" value={form.defs[d]||""} onChange={function(e){setD(d,e.target.value);}}/>
+                      <span style={{fontSize:16,fontWeight:700,color:c>0?"#3b82f6":"rgba(255,255,255,0.1)",minWidth:22,textAlign:"right"}}>{p}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{background:"rgba(0,0,0,0.25)",border:"1.5px solid rgba(255,255,255,0.1)",borderRadius:6,padding:"5px 8px",marginBottom:5}}>
+                <div style={{fontSize:14,color:"#4a5568",textTransform:"uppercase",letterSpacing:1,fontWeight:700,marginBottom:4}}>Rechazo automatico</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3}}>
+                  {RECHAZOS.map(function(r){
+                    var v=nv((form.recs&&form.recs[r])||0);
+                    return (
+                      <div key={r} style={{background:v>0?"rgba(239,68,68,0.15)":"rgba(0,0,0,0.2)",border:"1px solid "+(v>0?"#ef4444":"rgba(255,255,255,0.08)"),borderRadius:4,padding:"4px 5px",textAlign:"center"}}>
+                        <div style={{fontSize:15,color:v>0?"#fca5a5":"#6b7280",marginBottom:3}}>{r}{v>0?" ":""}</div>
+                        <input style={{width:"100%",border:"none",borderBottom:"1px solid "+(v>0?"#ef4444":"rgba(255,255,255,0.2)"),background:"transparent",color:v>0?"#ef4444":"#f0ece6",fontFamily:"monospace",fontSize:20,fontWeight:700,textAlign:"center",outline:"none"}} type="number" min="0" placeholder="0" value={(form.recs&&form.recs[r])||""} onChange={function(e){setR(r,e.target.value);}}/>
+                      </div>
+                    );
+                  })}
+                </div>
+                {hayRechazo&&<div style={{fontSize:17,color:"#ef4444",fontWeight:700,marginTop:4,textAlign:"center"}}>RECHAZO AUTOMATICO</div>}
+              </div>
+            </div>
+          )}
+
+          {/* BOLSAS */}
+          {esBolsas&&(<>
+            {/* Piezas totales y empacador */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,marginBottom:4}}>
+              <div><div style={lbl}>Total piezas caja</div>
+                <input style={{...sel,fontFamily:"Georgia,serif",fontSize:21,fontWeight:900,textAlign:"center"}} type="number" placeholder="0" value={form.piezas} onChange={function(e){setF("piezas",e.target.value);}}/>
+              </div>
+              <div><div style={lbl}>Empacador #</div>
+                <input style={{...sel,fontFamily:"Georgia,serif",fontSize:21,fontWeight:900,textAlign:"center"}} placeholder="ID" value={form.empacador||""} onChange={function(e){setF("empacador",e.target.value);}}/>
+              </div>
+            </div>
+            {avgPeso>0&&(
+              <div style={{background:"rgba(0,0,0,0.25)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:6,padding:"5px 8px",marginBottom:4}}>
+                <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:4}}>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:14,color:"#4a5568"}}>Peso prom.</div>
+                    <div style={{fontSize:23,fontWeight:900,color:semPeso(avgPeso,pres).c,fontFamily:"Georgia,serif"}}>{f1(avgPeso)}g</div>
+                    <div style={{fontSize:14,color:semPeso(avgPeso,pres).c,fontWeight:700}}>{semPeso(avgPeso,pres).lbl}{regaloAvg&&<span style={{color:"#f59e0b"}}> +{regaloAvg.g}g ({regaloAvg.pctG}%)</span>}</div>
+                  </div>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:14,color:"#4a5568"}}>Piezas prom.</div>
+                    <div style={{fontSize:23,fontWeight:900,color:semPiezas(avgPiezas).c,fontFamily:"Georgia,serif"}}>{f1(avgPiezas)}</div>
+                  </div>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:14,color:"#4a5568"}}>Total piezas</div>
+                    <div style={{fontSize:23,fontWeight:900,color:"#f0ece6",fontFamily:"Georgia,serif"}}>{totalPiezasBolsas}</div>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,color:"#4a5568",marginBottom:2}}>Peso por bolsa</div>
+                    <div style={{display:"flex",alignItems:"flex-end",gap:1,height:24}}>
+                      {form.bolsas.map(function(b,i){
+                        var p=nv(b.peso);
+                        if(!p) return <div key={i} style={{flex:1,height:2,background:"rgba(255,255,255,0.1)",borderRadius:1}}/>;
+                        var smp=semPeso(p,pres);
+                        var min=pres==="8x2"?880:430;
+                        var h=Math.max(2,Math.min(22,((p-min)/80)*22));
+                        return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end"}}>
+                          <div style={{fontSize:12,color:smp.c,fontWeight:700,lineHeight:1,marginBottom:1}}>{p}</div>
+                          <div style={{width:"100%",height:h,background:smp.c,borderRadius:"1px 1px 0 0"}}/>
+                        </div>;
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Giveaway bolsas */}
+            {regaloAvg&&avgPeso>0&&(
+              <div style={{background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:6,padding:"6px 10px",marginBottom:5}}>
+                <div style={{fontSize:14,color:"#f59e0b",textTransform:"uppercase",letterSpacing:1,fontWeight:700,marginBottom:3}}>Giveaway  Peso regalo</div>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div>
+                    <div style={{fontSize:30,fontWeight:900,color:"#f59e0b",fontFamily:"Georgia,serif"}}>+{regaloAvg.g}g</div>
+                    <div style={{fontSize:17,fontWeight:700,color:"#f59e0b"}}>{regaloAvg.pctG}% de la caja</div>
+                  </div>
+                  <div style={{flex:1,fontSize:16,color:"#92400e"}}>
+                    +{regaloAvg.gPorBolsa}g por bolsa x {regaloAvg.numBolsas} bolsas = +{regaloAvg.g}g por caja
+                    <div style={{height:4,background:"rgba(245,158,11,0.2)",borderRadius:2,marginTop:4,overflow:"hidden"}}>
+                      <div style={{height:"100%",width:Math.min(100,parseFloat(regaloAvg.pctG)*5)+"%",background:"#f59e0b",borderRadius:2}}/>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:3,marginBottom:4}}>
+              {form.bolsas.map(function(b,i){
+                var smp=semPeso(nv(b.peso),pres);
+                return (
+                  <div key={i} style={{background:"rgba(0,0,0,0.3)",border:"1px solid "+(nv(b.peso)>0?smp.c+"44":"rgba(255,255,255,0.06)"),borderRadius:4,padding:"3px 4px"}}>
+                    <div style={{fontSize:13,color:"#4a5568",marginBottom:2}}>B{b.num}</div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:2}}>
+                      <div><div style={{fontSize:12,color:"#4a5568"}}>g</div><input style={{width:"100%",border:"none",borderBottom:"1px solid "+(nv(b.peso)>0?smp.c:"rgba(255,255,255,0.1)"),background:"transparent",color:nv(b.peso)>0?smp.c:"#f0ece6",fontFamily:"monospace",fontSize:18,fontWeight:700,outline:"none",padding:"1px 0"}} type="number" placeholder="---" value={b.peso} onChange={function(e){setBolsa(i,"peso",e.target.value);}}/></div>
+                      <div><div style={{fontSize:12,color:"#4a5568"}}>pzas</div><input style={{width:"100%",border:"none",borderBottom:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"#f0ece6",fontFamily:"monospace",fontSize:18,fontWeight:700,outline:"none",padding:"1px 0"}} type="number" placeholder="--" value={b.piezas} onChange={function(e){setBolsa(i,"piezas",e.target.value);}}/></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {incongruenciaPiezas&&<div style={{background:"#450a0a",border:"1px solid #ef4444",borderRadius:4,padding:"3px 7px",marginBottom:4,fontSize:16,color:"#ef4444",fontWeight:700}}>INCONGRUENCIA  Piezas en bolsas ({totalPiezasBolsas}) no cuadran con calidades ({total})</div>}
+
+            {/* Calidades bolsas */}
+            {total>0&&(
+              <div style={{background:sm.bg,border:"1px solid "+sm.c+"44",borderRadius:7,padding:"5px 8px",marginBottom:4,display:"flex",alignItems:"center",gap:8}}>
+                <div style={{fontSize:32,fontWeight:900,color:sm.c,fontFamily:"Georgia,serif",lineHeight:1,minWidth:50,textAlign:"center"}}>{pPri}%</div>
+                <div style={{flex:1,display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:3}}>
+                  {[["1ra",pct(nv(form.primera),total),"#22c55e"],["2da",pct(nv(form.segunda),total),"#f59e0b"],["3ra",pct(nv(form.tercera),total),"#f97316"],["Merma",pct(nv(form.merma),total),"#ef4444"]].map(function(x){return (
+                    <div key={x[0]} style={{textAlign:"center",background:"rgba(0,0,0,0.3)",borderRadius:3,padding:2}}>
+                      <div style={{fontSize:13,color:"#4a5568"}}>{x[0]}</div>
+                      <div style={{fontSize:18,fontWeight:900,color:x[2],fontFamily:"Georgia,serif"}}>{x[1]}%</div>
+                    </div>
+                  )})}
+                </div>
+                <div style={{color:sm.c,border:"1px solid "+sm.c,padding:"2px 6px",borderRadius:20,fontSize:17,fontWeight:700}}>{sm.icon} {sm.lbl}</div>
+              </div>
+            )}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:3,marginBottom:4}}>
+              {[["primera","1ra","#22c55e"],["segunda","2da","#f59e0b"],["tercera","3ra","#f97316"],["merma","Merma","#ef4444"]].map(function(x){return (
+                <div key={x[0]} style={{background:"rgba(0,0,0,0.3)",border:"1px solid "+(nv(form[x[0]])>0?x[2]+"44":"rgba(255,255,255,0.06)"),borderRadius:4,padding:"3px",textAlign:"center"}}>
+                  <div style={{fontSize:13,color:x[2],textTransform:"uppercase",marginBottom:1}}>{x[1]}</div>
+                  <input style={inp} type="number" min="0" placeholder="0" value={form[x[0]]} onChange={function(e){setF(x[0],e.target.value);}}/>
+                  <div style={{fontSize:17,fontWeight:900,color:nv(form[x[0]])>0?x[2]:"rgba(255,255,255,0.1)",fontFamily:"Georgia,serif",marginTop:1}}>{total>0?pct(nv(form[x[0]]),total):0}%</div>
+                </div>
+              )})}
+            </div>
+          </>)}
+
+          {/* DEFECTOS Y RECHAZO - solo para 20lb y bolsas */}
+          {(es20||esBolsas)&&(<>
+          {incongruencia&&<div style={{background:"#450a0a",border:"1px solid #ef4444",borderRadius:4,padding:"3px 7px",marginBottom:3,fontSize:16,color:"#ef4444",fontWeight:700}}>INCONGRUENCIA  Defectos ({totalDefs}) superan piezas con defecto ({piezasDefecto})</div>}
+          <div style={{fontSize:13,color:"#4a5568",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Defectos</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:3,marginBottom:5}}>
+            {(producto==="Morron"?DEFECTOS_MORRON:producto==="Europeo"?DEFECTOS_EUROPEO:DEFECTOS).map(function(d){
+              var c=nv(form.defs[d]||0),p=pct(c,total);
+              return (
+                <div key={d} style={{display:"flex",alignItems:"center",gap:4,background:c>0?"rgba(59,130,246,0.08)":"rgba(0,0,0,0.2)",border:"1px solid "+(c>0?"rgba(59,130,246,0.3)":"rgba(255,255,255,0.06)"),borderRadius:4,padding:"8px 10px"}}>
+                  <span style={{fontSize:16,flex:1,color:c>0?"#bfdbfe":"#6b7280"}}>{d}</span>
+                  <input style={{width:32,border:"none",borderBottom:"1px solid rgba(255,255,255,0.2)",background:"transparent",color:"#f0ece6",fontFamily:"monospace",fontSize:18,fontWeight:700,textAlign:"center",outline:"none"}} type="number" min="0" placeholder="0" value={form.defs[d]||""} onChange={function(e){setD(d,e.target.value);}}/>
+                  <span style={{fontSize:16,fontWeight:700,color:c>0?"#3b82f6":"rgba(255,255,255,0.1)",minWidth:22,textAlign:"right"}}>{p}%</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* RECHAZO AUTOMATICO */}
+          <div style={{background:"rgba(0,0,0,0.25)",border:"1.5px solid rgba(255,255,255,0.1)",borderRadius:6,padding:"5px 8px",marginBottom:5}}>
+            <div style={{fontSize:14,color:hayRechazoTotal?"#ef4444":"#4a5568",textTransform:"uppercase",letterSpacing:1,fontWeight:700,marginBottom:4}}>Rechazo automatico</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:3}}>
+              {RECHAZOS.map(function(r){
+                var v=nv((form.recs&&form.recs[r])||0);
+                return (
+                  <div key={r} style={{background:v>0?"rgba(239,68,68,0.15)":"rgba(0,0,0,0.2)",border:"1px solid "+(v>0?"#ef4444":"rgba(255,255,255,0.08)"),borderRadius:4,padding:"4px 5px",textAlign:"center"}}>
+                    <div style={{fontSize:15,color:v>0?"#fca5a5":"#6b7280",marginBottom:3,lineHeight:1.2}}>{r}{v>0?" ":""}</div>
+                    <input style={{width:"100%",border:"none",borderBottom:"1px solid "+(v>0?"#ef4444":"rgba(255,255,255,0.2)"),background:"transparent",color:v>0?"#ef4444":"#f0ece6",fontFamily:"monospace",fontSize:20,fontWeight:700,textAlign:"center",outline:"none"}} type="number" min="0" placeholder="0" value={(form.recs&&form.recs[r])||""} onChange={function(e){setR(r,e.target.value);}}/>
+                  </div>
+                );
+              })}
+            </div>
+            {bajoPeso20&&<div style={{fontSize:16,color:"#ef4444",fontWeight:700,marginTop:4,background:"rgba(239,68,68,0.1)",borderRadius:3,padding:"3px 6px",textAlign:"center"}}>BAJO PESO DETECTADO  {nv(form.peso)}kg por debajo del minimo (9.2kg)</div>}
+            {bajoPesoBolsas>0&&<div style={{fontSize:16,color:"#ef4444",fontWeight:700,marginTop:4,background:"rgba(239,68,68,0.1)",borderRadius:3,padding:"3px 6px",textAlign:"center"}}>{bajoPesoBolsas} bolsa{bajoPesoBolsas>1?"s":""} con BAJO PESO detectadas automaticamente</div>}
+            {(hayRechazo||hayBajoPeso)&&<div style={{fontSize:17,color:"#ef4444",fontWeight:700,marginTop:4,textAlign:"center"}}>RECHAZO AUTOMATICO  Esta caja no puede ser liberada</div>}
+          </div>
+          </>)}
+
+          <button onClick={function(){pinReqQCT(guardar);}} style={{width:"100%",padding:"18px",background:!puedoGuardar?"rgba(255,255,255,0.05)":hayRechazoTotal?"linear-gradient(135deg,#7f1d1d,#ef4444)":"linear-gradient(135deg,#1d4ed8,#3b82f6)",border:"none",borderRadius:12,fontFamily:"system-ui,sans-serif",fontSize:21,fontWeight:900,color:puedoGuardar?"#fff":"#4a5568",cursor:puedoGuardar?"pointer":"default",marginTop:8,marginBottom:8}}>
+            {incongruencia||incongruenciaPiezas||incongruenciaCaja?"Corrige incongruencia":hayRechazoTotal?"Guardar evaluacion (con rechazo)":"Guardar evaluacion"}
+          </button>
+        </div>
+      )}
+
+      {tab==="pedidos"&&(
+        <div>
+          {!numActivos
+            ? <div style={{textAlign:"center",padding:32}}><div style={{fontSize:48,marginBottom:6}}></div><div style={{color:"#4a5568",fontSize:19}}>Sin pedidos activos</div></div>
+            : Object.entries(pedidosActivos).map(function(item){var k=item[0];var ped=item[1];
+              var isOpen=pedidoOpen===k;
+              var evs=ped.evaluaciones||[];
+              var avgCal=evs.length>0?evs.reduce(function(s,e){return s+(e.pPri||0);},0)/evs.length:0;
+              var smP=semCal(avgCal);
+              var pctEval=ped.totalCajas>0?((evs.length/ped.totalCajas)*100).toFixed(1):null;
+              // Calcular giveaway promedio
+              var evsCon=evs.filter(function(e){return e.peso>0;});
+              var avgPesoEv=evsCon.length>0?evsCon.reduce(function(s,e){return s+e.peso;},0)/evsCon.length:0;
+              var regaloPed=regalo(avgPesoEv,ped.presentacion);
+              return (
+                <div key={k} style={{background:"rgba(0,0,0,0.3)",border:"1px solid "+smP.c+"33",borderRadius:8,marginBottom:8,overflow:"hidden"}}>
+                  <div onClick={function(){setPedidoOpen(isOpen?null:k);}} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 11px",cursor:"pointer"}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:20,fontWeight:700,color:"#f0ece6"}}>{ped.cliente}  {ped.producto||""} {ped.presentacion}</div>
+                      <div style={{fontSize:16,color:"#4a5568"}}>{evs.length} eval.{pctEval?"  "+pctEval+"% evaluado":""}{ped.totalCajas>0?" ("+ped.totalCajas+" cajas)":""}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:30,fontWeight:900,color:smP.c,fontFamily:"Georgia,serif"}}>{f1(avgCal)}%</div>
+                      <div style={{fontSize:16,color:smP.c,fontWeight:700}}>{smP.icon} {smP.lbl}</div>
+                    </div>
+                    <span style={{color:"#4a5568",fontSize:17}}>{isOpen?"":""}</span>
+                  </div>
+
+                  {isOpen&&(
+                    <div style={{borderTop:"1px solid rgba(255,255,255,0.06)",padding:"7px 11px"}}>
+
+                      {/* GIVEAWAY GRAFICA */}
+                      {avgPesoEv>0&&(
+                        <div style={{background:"rgba(0,0,0,0.3)",borderRadius:6,padding:"7px 10px",marginBottom:8}}>
+                          <div style={{fontSize:14,color:"#4a5568",textTransform:"uppercase",letterSpacing:1,marginBottom:5}}>Peso promedio de evaluaciones</div>
+                          <div style={{display:"flex",alignItems:"center",gap:10}}>
+                            <div>
+                              <div style={{fontSize:28,fontWeight:900,color:semPeso(avgPesoEv,ped.presentacion).c,fontFamily:"Georgia,serif"}}>{f1(avgPesoEv)}{ped.presentacion==="20lb"?"kg":"g"}</div>
+                              <div style={{fontSize:16,color:semPeso(avgPesoEv,ped.presentacion).c,fontWeight:700}}>{semPeso(avgPesoEv,ped.presentacion).lbl}</div>
+                            </div>
+                            {regaloPed&&(
+                              <div style={{flex:1,background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:6,padding:"5px 8px"}}>
+                                <div style={{fontSize:14,color:"#f59e0b",textTransform:"uppercase",letterSpacing:1,fontWeight:700,marginBottom:3}}>Giveaway / Peso regalo</div>
+                                <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+                                  <div style={{fontSize:30,fontWeight:900,color:"#f59e0b",fontFamily:"Georgia,serif"}}>+{regaloPed.g}g</div>
+                                  <div style={{fontSize:20,fontWeight:700,color:"#f59e0b"}}>{regaloPed.pctG}%</div>
+                                </div>
+                                <div style={{height:4,background:"rgba(245,158,11,0.2)",borderRadius:2,marginTop:3,overflow:"hidden"}}>
+                                  <div style={{height:"100%",width:Math.min(100,parseFloat(regaloPed.pctG)*10)+"%",background:"#f59e0b",borderRadius:2}}/>
+                                </div>
+                                <div style={{fontSize:15,color:"#92400e",marginTop:2}}>por encima del maximo objetivo</div>
+                              </div>
+                            )}
+                            {!regaloPed&&avgPesoEv>0&&(
+                              <div style={{flex:1,background:"rgba(34,197,94,0.08)",border:"1px solid rgba(34,197,94,0.2)",borderRadius:6,padding:"5px 8px",textAlign:"center"}}>
+                                <div style={{fontSize:14,color:"#22c55e",marginBottom:2}}>Giveaway</div>
+                                <div style={{fontSize:23,fontWeight:900,color:"#22c55e"}}>0g</div>
+                                <div style={{fontSize:15,color:"#166534"}}>Peso dentro del objetivo</div>
+                              </div>
+                            )}
+                          </div>
+                          {/* Mini grafica de pesos por evaluacion */}
+                          {evsCon.length>1&&ped.presentacion==="20lb"&&(
+                            <div style={{marginTop:6}}>
+                              <div style={{fontSize:13,color:"#4a5568",marginBottom:2}}>Variacion de peso por evaluacion ({ped.presentacion==="20lb"?"kg":"g"})</div>
+                              <div style={{display:"flex",alignItems:"flex-end",gap:2,height:20}}>
+                                {evsCon.map(function(e,i){
+                                  var smp=semPeso(e.peso,ped.presentacion);
+                                  var min=ped.presentacion==="20lb"?8.8:ped.presentacion==="8x2"?900:430;
+                                  var range=ped.presentacion==="20lb"?0.8:80;
+                                  var h=Math.max(2,Math.min(18,((e.peso-min)/range)*18));
+                                  return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end"}}>
+                                    <div style={{fontSize:12,color:smp.c,lineHeight:1,marginBottom:1}}>{ped.presentacion==="20lb"?e.peso:Math.round(e.peso)}</div>
+                                    <div style={{width:"100%",height:h,background:smp.c,borderRadius:"1px 1px 0 0"}}/>
+                                  </div>;
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Lista evaluaciones */}
+                      {evs.map(function(ev,i){
+                        var sm2=semCal(ev.pPri||0);
+                        var tieneRechazo=RECHAZOS.some(function(r){return nv((ev.recs&&ev.recs[r])||0)>0;})||ev.bajoPeso20||ev.bajoPesoBolsas>0;
+                        return (
+                          <div key={ev.id} style={{background:"rgba(0,0,0,0.2)",borderRadius:5,padding:"5px 8px",marginBottom:4,border:tieneRechazo?"1px solid #ef4444":"1px solid transparent"}}>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                              <div style={{fontSize:18,fontWeight:700,color:tieneRechazo?"#ef4444":"#f0ece6"}}>Eval. #{i+1}{ev.rancho?"  "+ev.rancho:""}{ev.malla?" M"+ev.malla:""}{ev.empacador?"  Emp."+ev.empacador:""}{tieneRechazo?"  RECHAZADA":""}</div>
+                              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                {ev.peso>0&&<span style={{fontSize:16,color:semPeso(ev.peso,ped.presentacion).c}}>{ev.peso}{ped.presentacion==="20lb"?"kg":"g"}</span>}
+                                {ev.peso>0&&regalo(ev.peso,ped.presentacion)&&<span style={{fontSize:16,color:"#f59e0b",fontWeight:700}}>+{regalo(ev.peso,ped.presentacion).g}g</span>}
+                                <span style={{fontSize:23,fontWeight:900,color:sm2.c,fontFamily:"Georgia,serif"}}>{ev.pPri||0}%</span>
+                              </div>
+                            </div>
+                            {tieneRechazo&&<div style={{display:"flex",gap:4,marginTop:3,flexWrap:"wrap"}}>
+                              {RECHAZOS.filter(function(r){return nv((ev.recs&&ev.recs[r])||0)>0;}).map(function(r){return (
+                                <span key={r} style={{fontSize:15,color:"#ef4444",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",padding:"1px 5px",borderRadius:10}}> {r}: {ev.recs[r]}</span>
+                              )})}
+                              {ev.bajoPeso20&&<span style={{fontSize:15,color:"#ef4444",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",padding:"1px 5px",borderRadius:10}}> Bajo peso: {ev.peso}kg (min 9.2kg)</span>}
+                              {ev.bajoPesoBolsas>0&&<span style={{fontSize:15,color:"#ef4444",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",padding:"1px 5px",borderRadius:10}}> Bajo peso: {ev.bajoPesoBolsas} bolsa{ev.bajoPesoBolsas>1?"s":""}</span>}
+                            </div>}
+                          </div>
+                        );
+                      })}
+
+                      {cerrarConf===k?(
+                        <div style={{background:"rgba(0,0,0,0.4)",border:"1px solid rgba(59,130,246,0.3)",borderRadius:6,padding:"8px",marginTop:5}}>
+                          <div style={{fontSize:18,color:"#f0ece6",fontWeight:700,marginBottom:4}}>Cerrar pedido {ped.cliente} - {ped.presentacion}?</div>
+                          <div style={{fontSize:16,color:"#4a5568",marginBottom:7}}>{evs.length} eval.  {pctEval?pctEval+"% evaluado":""}  Cal. prom: {f1(avgCal)}%</div>
+                          <div style={{display:"flex",gap:5}}>
+                            <button onClick={function(){cerrarPedido(k);}} style={{flex:1,padding:"7px",background:"#1d4ed8",border:"none",borderRadius:5,fontFamily:"system-ui,sans-serif",fontSize:18,fontWeight:700,color:"#fff",cursor:"pointer"}}>Si, cerrar</button>
+                            <button onClick={function(){setCerrarConf(null);}} style={{flex:1,padding:"7px",background:"transparent",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,fontFamily:"system-ui,sans-serif",fontSize:18,fontWeight:700,color:"#4a5568",cursor:"pointer"}}>Cancelar</button>
+                          </div>
+                        </div>
+                      ):(
+                        <button onClick={function(){setCerrarConf(k);}} style={{width:"100%",padding:"7px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,fontFamily:"system-ui,sans-serif",fontSize:18,fontWeight:700,color:"#94a3b8",cursor:"pointer",marginTop:5}}>
+                          Cerrar pedido y guardar
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          }
+        </div>
+      )}
+
+      {tab==="historial"&&(
+        <div>
+          {!hist.length
+            ? <div style={{textAlign:"center",padding:32}}><div style={{color:"#4a5568",fontSize:19}}>Sin historial</div></div>
+            : hist.map(function(p,i){
+              var sm=semCal(p.avgCal||0);
+              var evs=p.evaluaciones||[];
+              var totalEvs=evs.length;
+              var cajasBajoPeso=evs.filter(function(e){return e.bajoPeso20||e.bajoPesoBolsas>0;}).length;
+              var cajasEtiqueta=evs.filter(function(e){return nv((e.recs&&e.recs["Mal etiquetado"])||0)>0;}).length;
+              var pctBajoPeso=totalEvs>0?Math.round((cajasBajoPeso/totalEvs)*100):0;
+              var pctEtiqueta=totalEvs>0?Math.round((cajasEtiqueta/totalEvs)*100):0;
+              var totalPiezas=evs.reduce(function(s,e){return s+(e.total||0);},0);
+              var piezasPudricion=evs.reduce(function(s,e){return s+nv((e.recs&&e.recs["Pudricion"])||0);},0);
+              var pctPudricion=totalPiezas>0?((piezasPudricion/totalPiezas)*100).toFixed(1):0;
+              var conRechazo=evs.filter(function(e){return RECHAZOS.some(function(r){return nv((e.recs&&e.recs[r])||0)>0;})||e.bajoPeso20||e.bajoPesoBolsas>0;}).length;
+              var pctRechazo=totalEvs>0?Math.round((conRechazo/totalEvs)*100):0;
+              var defAcum={};
+              evs.forEach(function(e){
+                Object.keys(e.defs||{}).forEach(function(d){defAcum[d]=(defAcum[d]||0)+nv(e.defs[d]);});
+                Object.keys(e.recs||{}).forEach(function(r){defAcum[r]=(defAcum[r]||0)+nv(e.recs[r]);});
+                if(e.bajoPeso20)defAcum["Bajo peso"]=(defAcum["Bajo peso"]||0)+1;
+                if(e.bajoPesoBolsas>0)defAcum["Bajo peso"]=(defAcum["Bajo peso"]||0)+e.bajoPesoBolsas;
+              });
+              var topDefs=Object.keys(defAcum).filter(function(d){return d!=="Mal etiquetado"&&d!=="Bajo peso";}).map(function(d){return{d:d,p:totalPiezas>0?((defAcum[d]/totalPiezas)*100).toFixed(1):0,v:defAcum[d]};}).filter(function(x){return x.v>0;}).sort(function(a,b){return b.p-a.p;}).slice(0,5);
+              var evsPeso=evs.filter(function(e){return e.peso>0;});
+              var avgPesoHist=evsPeso.length>0?evsPeso.reduce(function(s,e){return s+e.peso;},0)/evsPeso.length:0;
+              var regalHist=regalo(avgPesoHist,p.presentacion);
+              return (
+                <div key={i} style={{background:"rgba(0,0,0,0.3)",border:"1px solid "+sm.c+"33",borderRadius:8,marginBottom:10,overflow:"hidden"}}>
+                  <div style={{background:"rgba(0,0,0,0.3)",padding:"8px 11px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div>
+                        <div style={{fontSize:21,fontWeight:700,color:"#f0ece6"}}>{p.cliente} {p.producto||""} {p.presentacion}</div>
+                        <div style={{fontSize:16,color:"#4a5568"}}>{p.fechaCierre} . {totalEvs} eval.</div>
+                      </div>
+                      <div style={{color:sm.c,border:"1px solid "+sm.c,padding:"2px 8px",borderRadius:20,fontSize:17,fontWeight:700}}>{sm.icon} {sm.lbl}</div>
+                    </div>
+                  </div>
+                  <div style={{padding:"8px 11px"}}>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:5,marginBottom:8}}>
+                      <div style={{background:sm.bg,border:"1px solid "+sm.c+"44",borderRadius:6,padding:"6px 8px",textAlign:"center"}}>
+                        <div style={{fontSize:14,color:sm.c,textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Calidad</div>
+                        <div style={{fontSize:28,fontWeight:900,color:sm.c,fontFamily:"Georgia,serif"}}>{f1(p.avgCal||0)}%</div>
+                        <div style={{fontSize:15,color:sm.c,fontWeight:700}}>{sm.lbl}</div>
+                      </div>
+                      <div style={{background:pctRechazo>0?"#1a0505":"rgba(0,0,0,0.2)",border:"1px solid "+(pctRechazo>0?"#ef4444":"rgba(255,255,255,0.08)"),borderRadius:6,padding:"6px 8px",textAlign:"center"}}>
+                        <div style={{fontSize:14,color:pctRechazo>0?"#ef4444":"#4a5568",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Rechazo auto.</div>
+                        <div style={{fontSize:25,fontWeight:900,color:pctRechazo>0?"#ef4444":"#4a5568",fontFamily:"Georgia,serif"}}>{pctRechazo}%</div>
+                        <div style={{fontSize:15,color:pctRechazo>0?"#ef4444":"#4a5568"}}>{conRechazo} de {totalEvs} cajas</div>
+                      </div>
+                      <div style={{background:regalHist?"rgba(245,158,11,0.1)":"rgba(0,0,0,0.2)",border:"1px solid "+(regalHist?"rgba(245,158,11,0.3)":"rgba(255,255,255,0.08)"),borderRadius:6,padding:"6px 8px",textAlign:"center"}}>
+                        <div style={{fontSize:14,color:regalHist?"#f59e0b":"#4a5568",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Giveaway</div>
+                        {regalHist&&<div><div style={{fontSize:28,fontWeight:900,color:"#f59e0b",fontFamily:"Georgia,serif"}}>+{regalHist.g}g</div><div style={{fontSize:15,color:"#f59e0b"}}>{regalHist.pctG}% sobre max</div></div>}
+                        {!regalHist&&<div><div style={{fontSize:28,fontWeight:900,color:"#22c55e",fontFamily:"Georgia,serif"}}>0g</div><div style={{fontSize:15,color:"#22c55e"}}>OK</div></div>}
+                      </div>
+                    </div>
+                    {topDefs.length>0&&(
+                      <div style={{marginBottom:6}}>
+                        <div style={{fontSize:14,color:"#4a5568",textTransform:"uppercase",letterSpacing:1,marginBottom:5}}>Defectos principales</div>
+                        {topDefs.map(function(d,j){
+                          var cols=["#f59e0b","#94a3b8","#6b7280","#4a5568","#374151"];
+                          return (
+                            <div key={j} style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                              <span style={{fontSize:17,color:cols[j]||"#6b7280",minWidth:90}}>{d.d}</span>
+                              <div style={{flex:1,height:5,background:"rgba(255,255,255,0.08)",borderRadius:3,overflow:"hidden"}}>
+                                <div style={{height:"100%",width:Math.min(100,parseFloat(d.p)*3)+"%",background:cols[j]||"#6b7280",borderRadius:3}}/>
+                              </div>
+                              <span style={{fontSize:18,fontWeight:700,color:cols[j]||"#6b7280",minWidth:36,textAlign:"right"}}>{d.p}%</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          }
+          {hist.length>0&&<button onClick={function(){saveHist([]);}} style={{width:"100%",padding:"7px",background:"transparent",border:"1px solid rgba(255,255,255,0.08)",borderRadius:6,fontFamily:"system-ui,sans-serif",fontSize:17,fontWeight:700,color:"#4a5568",cursor:"pointer",marginTop:3}}>Borrar historial</button>}
+        </div>
+      )}
+
+      </div>
+    {showPinQCT&&<ModalPinQCT onOk={function(){pinOkQCT();}} onCancel={function(){setShowPinQCT(false);setPinCbQCT(null);}}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
